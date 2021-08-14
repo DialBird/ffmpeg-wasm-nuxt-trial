@@ -64,6 +64,12 @@ export default defineComponent({
 
           initMediaRecorder(stream)
         })
+
+      if ('SharedArrayBuffer' in window) {
+        console.log('you can do it ')
+      } else {
+        console.log('you cant!!!!')
+      }
     }
 
     return {
