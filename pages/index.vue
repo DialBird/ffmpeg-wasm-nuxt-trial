@@ -39,6 +39,7 @@
       >
         Stop Recording
       </button>
+      {{ isProcessing ? 'Now Processing...' : '' }}
     </div>
   </div>
 </template>
@@ -52,8 +53,13 @@ export default defineComponent({
   setup() {
     const localStream = ref<MediaStream | null>(null)
     const videoRef = ref<HTMLMediaElement>(null!)
-    const { initMediaRecorder, mediaRecorder, startRecord, stopRecord } =
-      useMediaRecorder()
+    const {
+      initMediaRecorder,
+      mediaRecorder,
+      isProcessing,
+      startRecord,
+      stopRecord,
+    } = useMediaRecorder()
 
     if (process.client) {
       navigator.mediaDevices
@@ -74,6 +80,7 @@ export default defineComponent({
 
     return {
       mediaRecorder,
+      isProcessing,
       startRecord,
       stopRecord,
       videoRef,
