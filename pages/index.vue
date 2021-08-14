@@ -20,8 +20,24 @@
           mt-4
           rounded
         "
+        @click="onClickRecord"
       >
         Start Recording
+      </button>
+      <button
+        class="
+          bg-red-500
+          hover:bg-red-700
+          text-white
+          font-bold
+          py-2
+          px-4
+          mt-4
+          rounded
+        "
+        @click="onClickStop"
+      >
+        Stop Recording
       </button>
     </div>
   </div>
@@ -33,9 +49,10 @@ import { defineComponent, ref } from '@nuxtjs/composition-api'
 export default defineComponent({
   name: 'PageIndex',
   setup() {
-    const stream = ref<MediaStream | null>(null)
+    const localStream = ref<MediaStream | null>(null)
     const mediaRecorder = ref<MediaRecorder | null>(null)
     const videoRef = ref<HTMLMediaElement>(null!)
+    const chunksRef = ref<Blob[]>([])
 
     if (process.client) {
       let options: MediaRecorderOptions
@@ -47,14 +64,57 @@ export default defineComponent({
 
       navigator.mediaDevices
         .getUserMedia({ audio: true, video: true })
-        .then((s) => {
-          stream.value = s
-          videoRef.value.srcObject = stream.value
-          // mediaRecorder.value = new MediaRecorder(stream.value, options)
+        .then((stream) => {
+          localStream.value = stream
+          videoRef.value.srcObject = stream
+
+          mediaRecorder.value = new MediaRecorder(stream, options)
+
+          mediaRecorder.value.ondataavailable = (e: BlobEvent) => {
+            if (e.data && e.data.size > 0) {
+              chunksRef.value = [...chunksRef.value, e.data]
+            }
+          }
+
+          mediaRecorder.value.onstop = () => {
+            const blob = new Blob(chunksRef.value, { type: 'video/webm' })
+            chunksRef.value = []
+
+            // その場で自動ダウンロードする
+            const videoURL = window.URL.createObjectURL(blob)
+            const downLoadLink = document.createElement('a')
+            downLoadLink.href = videoURL
+            downLoadLink.download = 'record.webm'
+            downLoadLink.click()
+            downLoadLink.remove()
+
+            if (stream.active) {
+              stream.getTracks().forEach((track) => track.stop())
+            }
+          }
         })
     }
 
-    return { mediaRecorder, stream, videoRef }
+    const onClickRecord = () => {
+      if (!mediaRecorder.value || mediaRecorder.value.state !== 'inactive')
+        return
+
+      mediaRecorder.value.start(10)
+    }
+
+    const onClickStop = () => {
+      if (!mediaRecorder.value || mediaRecorder.value.state !== 'recording')
+        return
+
+      mediaRecorder.value.stop()
+    }
+
+    return {
+      mediaRecorder,
+      onClickRecord,
+      onClickStop,
+      videoRef,
+    }
   },
 })
 </script>
