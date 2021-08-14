@@ -20,7 +20,7 @@
           mt-4
           rounded
         "
-        @click="onClickRecord"
+        @click="startRecord"
       >
         Start Recording
       </button>
@@ -35,7 +35,7 @@
           mt-4
           rounded
         "
-        @click="onClickStop"
+        @click="stopRecord"
       >
         Stop Recording
       </button>
@@ -45,74 +45,31 @@
 
 <script lang="ts">
 import { defineComponent, ref } from '@nuxtjs/composition-api'
+import { useMediaRecorder } from '@/composables/useMediaRecorder'
 
 export default defineComponent({
   name: 'PageIndex',
   setup() {
     const localStream = ref<MediaStream | null>(null)
-    const mediaRecorder = ref<MediaRecorder | null>(null)
     const videoRef = ref<HTMLMediaElement>(null!)
-    const chunksRef = ref<Blob[]>([])
+    const { initMediaRecorder, mediaRecorder, startRecord, stopRecord } =
+      useMediaRecorder()
 
     if (process.client) {
-      let options: MediaRecorderOptions
-      if (MediaRecorder.isTypeSupported('video/webm;codecs="vp9,opus"')) {
-        options = { mimeType: 'video/webm;codecs="vp9,opus"' }
-      } else {
-        options = { mimeType: 'video/webm;codecs="vp8,opus"' }
-      }
-
       navigator.mediaDevices
         .getUserMedia({ audio: true, video: true })
         .then((stream) => {
           localStream.value = stream
           videoRef.value.srcObject = stream
 
-          mediaRecorder.value = new MediaRecorder(stream, options)
-
-          mediaRecorder.value.ondataavailable = (e: BlobEvent) => {
-            if (e.data && e.data.size > 0) {
-              chunksRef.value = [...chunksRef.value, e.data]
-            }
-          }
-
-          mediaRecorder.value.onstop = () => {
-            const blob = new Blob(chunksRef.value, { type: 'video/webm' })
-            chunksRef.value = []
-
-            // その場で自動ダウンロードする
-            const videoURL = window.URL.createObjectURL(blob)
-            const downLoadLink = document.createElement('a')
-            downLoadLink.href = videoURL
-            downLoadLink.download = 'record.webm'
-            downLoadLink.click()
-            downLoadLink.remove()
-
-            if (stream.active) {
-              stream.getTracks().forEach((track) => track.stop())
-            }
-          }
+          initMediaRecorder(stream)
         })
-    }
-
-    const onClickRecord = () => {
-      if (!mediaRecorder.value || mediaRecorder.value.state !== 'inactive')
-        return
-
-      mediaRecorder.value.start(10)
-    }
-
-    const onClickStop = () => {
-      if (!mediaRecorder.value || mediaRecorder.value.state !== 'recording')
-        return
-
-      mediaRecorder.value.stop()
     }
 
     return {
       mediaRecorder,
-      onClickRecord,
-      onClickStop,
+      startRecord,
+      stopRecord,
       videoRef,
     }
   },
